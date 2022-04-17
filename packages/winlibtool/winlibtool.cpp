@@ -27,14 +27,14 @@ struct SYMBOL_INFO
   SYMBOL_INFO *pNext;
   char *pSymbolName;
   DWORD SymbolNameLength;
-  DWORD OffsetIndex;
+  WORD OffsetIndex;
   union
   {
-    DWORD Hint;
-    DWORD Ordinal;
-    DWORD Value;
+    WORD Hint;
+    WORD Ordinal;
+    WORD Value;
   };
-  DWORD Type;
+  WORD Type;
 };
 
 enum CALLING_CONVENTION
@@ -57,12 +57,12 @@ struct INFO_ALL
   FILE_INFO *pFileInfo;
   SYMBOL_INFO *pSymbolList;
   DWORD SymbolCount;
-  DWORD FunctionCount;
-  DWORD Architecture;
+  WORD FunctionCount;
+  WORD Machine;
   DWORD *pOffsets;
-  LONGLONG Id;
+  DWORD TimeDateStamp;
   char *pModuleName;
-  DWORD ModuleNameLength;
+  UCHAR ModuleNameLength;
   char *pHeaderName;
   DWORD HeaderNameLength;
   BOOLEAN bHeaderName;
@@ -84,9 +84,9 @@ struct FILE_HEADER // size = 0x3C
 
 struct DATA_DESCRIPTOR // size = 0x14
 {
-  WORD Architecture;
+  WORD Machine;
   WORD a;
-  DWORD Id;
+  DWORD TimeDateStamp;
   DWORD Length;
   DWORD b;
   DWORD Flags;
@@ -128,12 +128,12 @@ struct SECTION_DESCRIPTOR_SHORT // size = 0x12
 
 struct SYMBOL_DESCRIPTOR // size = 0x14
 {
-  WORD a;
-  WORD b;
-  WORD c;
-  WORD Architecture;
-  DWORD Id;
-  DWORD Length;
+  WORD Sig1;
+  WORD Sig2;
+  WORD Version;
+  WORD Machine;
+  DWORD TimeDateStamp;
+  DWORD SizeOfData;
   union
   {
     WORD Hint;
@@ -154,7 +154,7 @@ SYMBOL_INFO **GetSymbolInfoArray2(SYMBOL_INFO *pSymbolList);
 SYMBOL_INFO **GetSymbolInfoArray3(SYMBOL_INFO *pSymbolList);
 SYMBOL_INFO **GetSymbolInfoArray4(SYMBOL_INFO *pSymbolList);
 SYMBOL_INFO **GetSymbolInfoArray5(SYMBOL_INFO *pSymbolList);
-void AddFunction(SYMBOL_INFO *pSymbolList, char *pFunctionName, DWORD Value, DWORD ArgListSizeInBytes, CALLING_CONVENTION CallingConvention, IMPORT_TYPE ImportType);
+void AddFunction(SYMBOL_INFO *pSymbolList, char *pFunctionName, WORD Value, DWORD ArgListSizeInBytes, CALLING_CONVENTION CallingConvention, IMPORT_TYPE ImportType);
 SYMBOL_INFO *CreateSymbolList(char *pName);
 void DestroySymbolList(SYMBOL_INFO *pSymbolList);
 FILE_INFO *CreateMappedFile(char *pFileName, DWORD MaxSize);
@@ -193,7 +193,7 @@ UCHAR g_Data2[20] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 
 char *CopyString(char *pString, DWORD *pLength)
 {
-  DWORD StringLength;
+  size_t StringLength;
   char *pCopyString;
 
   StringLength = strlen(pString);
@@ -202,14 +202,14 @@ char *CopyString(char *pString, DWORD *pLength)
 
   strcpy(pCopyString, pString);
 
-  *pLength = StringLength;
+  *pLength = (DWORD)StringLength;
 
   return pCopyString;
 }
 
 char *CopyString2(char *pString, char *pString2, DWORD *pLength)
 {
-  DWORD StringLength;
+  size_t StringLength;
   char *pCopyString;
 
   StringLength = strlen(pString) + strlen(pString2);
@@ -219,7 +219,7 @@ char *CopyString2(char *pString, char *pString2, DWORD *pLength)
   strcpy(pCopyString, pString);
   strcat(pCopyString, pString2);
 
-  *pLength = StringLength;
+  *pLength = (DWORD)StringLength;
 
   return pCopyString;
 }
@@ -361,7 +361,7 @@ SYMBOL_INFO **GetSymbolInfoArray0(SYMBOL_INFO *pSymbolList)
 
 char *DecorateCdeclFunction(char *pFunctionName, DWORD *pLength)
 {
-  DWORD Length;
+  size_t Length;
   char *pDecoratedFunctionName;
 
   Length = strlen(pFunctionName) + 1;
@@ -370,13 +370,13 @@ char *DecorateCdeclFunction(char *pFunctionName, DWORD *pLength)
   strcpy(pDecoratedFunctionName, "_");
   strcat(pDecoratedFunctionName, pFunctionName);
 
-  *pLength = Length;
+  *pLength = (DWORD)Length;
   return pDecoratedFunctionName;
 }
 
 char *DecorateStdCallFunction(char *pFunctionName, DWORD ArgListSizeInBytes, DWORD *pLength)
 {
-  DWORD Length;
+  size_t Length;
   char Buffer[20];
   char *pDecoratedFunctionName;
 
@@ -390,13 +390,13 @@ char *DecorateStdCallFunction(char *pFunctionName, DWORD ArgListSizeInBytes, DWO
   strcat(pDecoratedFunctionName, "@");
   strcat(pDecoratedFunctionName, Buffer);
 
-  *pLength = Length;
+  *pLength = (DWORD)Length;
   return pDecoratedFunctionName;
 }
 
 char *DecorateFastCallFunction(char *pFunctionName, DWORD ArgListSizeInBytes, DWORD *pLength)
 {
-  DWORD Length;
+  size_t Length;
   char Buffer[20];
   char *pDecoratedFunctionName;
 
@@ -410,13 +410,13 @@ char *DecorateFastCallFunction(char *pFunctionName, DWORD ArgListSizeInBytes, DW
   strcat(pDecoratedFunctionName, "@");
   strcat(pDecoratedFunctionName, Buffer);
 
-  *pLength = Length;
+  *pLength = (DWORD)Length;
   return pDecoratedFunctionName;
 }
 
 char *DecorateVectorCallFunction(char *pFunctionName, DWORD ArgListSizeInBytes, DWORD *pLength)
 {
-  DWORD Length;
+  size_t Length;
   char Buffer[20];
   char *pDecoratedFunctionName;
 
@@ -429,11 +429,11 @@ char *DecorateVectorCallFunction(char *pFunctionName, DWORD ArgListSizeInBytes, 
   strcat(pDecoratedFunctionName, "@@");
   strcat(pDecoratedFunctionName, Buffer);
 
-  *pLength = Length;
+  *pLength = (DWORD)Length;
   return pDecoratedFunctionName;
 }
 
-void ProcessFunction(SYMBOL_INFO *pSymbolInfo, char *pFunctionName, DWORD Value, DWORD ArgListSizeInBytes, CALLING_CONVENTION CallingConvention, IMPORT_TYPE ImportType)
+void ProcessFunction(SYMBOL_INFO *pSymbolInfo, char *pFunctionName, WORD Value, DWORD ArgListSizeInBytes, CALLING_CONVENTION CallingConvention, IMPORT_TYPE ImportType)
 {
   if (g_InfoAll.bX64)
   {
@@ -507,7 +507,14 @@ void ProcessFunction(SYMBOL_INFO *pSymbolInfo, char *pFunctionName, DWORD Value,
   }
 }
 
-void AddFunction(SYMBOL_INFO *pSymbolList, char *pFunctionName, DWORD Value, DWORD ArgListSizeInBytes, CALLING_CONVENTION CallingConvention, IMPORT_TYPE ImportType)
+SYMBOL_INFO *CreateSymbolInfo()
+{
+  SYMBOL_INFO *x = (SYMBOL_INFO *)malloc(sizeof(SYMBOL_INFO));
+  memset(x, 0, sizeof(x[0]));
+  return x;
+}
+
+void AddFunction(SYMBOL_INFO *pSymbolList, char *pFunctionName, WORD Value, DWORD ArgListSizeInBytes, CALLING_CONVENTION CallingConvention, IMPORT_TYPE ImportType)
 {
   SYMBOL_INFO *pSymbolInfo;
 
@@ -516,7 +523,7 @@ void AddFunction(SYMBOL_INFO *pSymbolList, char *pFunctionName, DWORD Value, DWO
   while (pSymbolInfo->pNext)
     pSymbolInfo = pSymbolInfo->pNext;
 
-  pSymbolInfo->pNext = (SYMBOL_INFO *)malloc(sizeof(SYMBOL_INFO));
+  pSymbolInfo->pNext = CreateSymbolInfo();
   pSymbolInfo = pSymbolInfo->pNext;
 
   ProcessFunction(pSymbolInfo, pFunctionName, Value, ArgListSizeInBytes, CallingConvention, ImportType);
@@ -524,14 +531,11 @@ void AddFunction(SYMBOL_INFO *pSymbolList, char *pFunctionName, DWORD Value, DWO
 
   pFunctionName = pSymbolInfo->pSymbolName;
 
-  pSymbolInfo->pNext = (SYMBOL_INFO *)malloc(sizeof(SYMBOL_INFO));
+  pSymbolInfo->pNext = CreateSymbolInfo();
   pSymbolInfo = pSymbolInfo->pNext;
 
   pSymbolInfo->pSymbolName = CopyString2("__imp_", pFunctionName, &pSymbolInfo->SymbolNameLength);
   pSymbolInfo->OffsetIndex = PREDEFINED_SYMBOLS_COUNT + g_InfoAll.FunctionCount;
-  pSymbolInfo->Value = 0;
-  pSymbolInfo->Type = 0;
-
   pSymbolInfo->pNext = NULL;
 
   ++(g_InfoAll.FunctionCount);
@@ -545,35 +549,29 @@ SYMBOL_INFO *CreateSymbolList(char *pName)
   strcpy(Buffer, "__IMPORT_DESCRIPTOR_");
   strcat(Buffer, pName);
 
-  pSymbolList = (SYMBOL_INFO *)malloc(sizeof(SYMBOL_INFO));
+  pSymbolList = CreateSymbolInfo();
   pSymbolInfo = pSymbolList;
 
   pSymbolInfo->pSymbolName = CopyString(Buffer, &pSymbolInfo->SymbolNameLength);
   pSymbolInfo->OffsetIndex = 0;
-  pSymbolInfo->Value = 0;
-  pSymbolInfo->Type = 0;
 
   strcpy(Buffer, "__NULL_IMPORT_DESCRIPTOR");
 
-  pSymbolInfo->pNext = (SYMBOL_INFO *)malloc(sizeof(SYMBOL_INFO));
+  pSymbolInfo->pNext = CreateSymbolInfo();
   pSymbolInfo = pSymbolInfo->pNext;
 
   pSymbolInfo->pSymbolName = CopyString(Buffer, &pSymbolInfo->SymbolNameLength);
   pSymbolInfo->OffsetIndex = 1;
-  pSymbolInfo->Value = 0;
-  pSymbolInfo->Type = 0;
 
   strcpy(Buffer, "\x7F");
   strcat(Buffer, pName);
   strcat(Buffer, "_NULL_THUNK_DATA");
 
-  pSymbolInfo->pNext = (SYMBOL_INFO *)malloc(sizeof(SYMBOL_INFO));
+  pSymbolInfo->pNext = CreateSymbolInfo();
   pSymbolInfo = pSymbolInfo->pNext;
 
   pSymbolInfo->pSymbolName = CopyString(Buffer, &pSymbolInfo->SymbolNameLength);
   pSymbolInfo->OffsetIndex = 2;
-  pSymbolInfo->Value = 0;
-  pSymbolInfo->Type = 0;
 
   pSymbolInfo->pNext = NULL;
 
@@ -669,7 +667,8 @@ void WriteImportLibrary(char *pName, char *pExt, SYMBOL_INFO *pSymbolList)
   DWORD *pOffsets;
   FILE_INFO *pFileInfo;
   char *pLibName, *pModuleName, *pHeaderName;
-  DWORD LibNameLength, ModuleNameLength, HeaderNameLength;
+  DWORD LibNameLength, HeaderNameLength;
+  UCHAR ModuleNameLength;
   DWORD OffsetCount;
   BOOLEAN bHeaderName;
 
@@ -677,7 +676,11 @@ void WriteImportLibrary(char *pName, char *pExt, SYMBOL_INFO *pSymbolList)
   pOffsets = (DWORD *)malloc(OffsetCount * sizeof(DWORD));
 
   pLibName = CopyString2(pName, ".lib", &LibNameLength);
-  pModuleName = CopyString2(pName, pExt, &ModuleNameLength);
+  {
+    DWORD ModuleNameLengthTmp;
+    pModuleName = CopyString2(pName, pExt, &ModuleNameLengthTmp);
+    ModuleNameLength = (UCHAR)ModuleNameLengthTmp;
+  }
 
   if ((ModuleNameLength + 1) > 0x10)
   {
@@ -697,12 +700,12 @@ void WriteImportLibrary(char *pName, char *pExt, SYMBOL_INFO *pSymbolList)
   g_InfoAll.SymbolCount = PREDEFINED_SYMBOLS_COUNT + (g_InfoAll.FunctionCount * 2);
 
   if (g_InfoAll.bX64)
-    g_InfoAll.Architecture = ARCHITECTURE_X64;
+    g_InfoAll.Machine = ARCHITECTURE_X64;
   else
-    g_InfoAll.Architecture = ARCHITECTURE_X86;
+    g_InfoAll.Machine = ARCHITECTURE_X86;
 
   g_InfoAll.pOffsets = pOffsets;
-  g_InfoAll.Id = _time64(NULL);
+  g_InfoAll.TimeDateStamp = (DWORD)_time64(NULL);
   g_InfoAll.pModuleName = pModuleName;
   g_InfoAll.ModuleNameLength = ModuleNameLength;
   g_InfoAll.pHeaderName = pHeaderName;
@@ -766,7 +769,7 @@ void WriteImportLibrary1()
 
   SeekMappedFile(pFileInfo, Offset, 0);
 
-  WriteFileHeader(pFileInfo, "", FALSE, g_InfoAll.Id, 0, Offset2 - (Offset + sizeof(FILE_HEADER)));
+  WriteFileHeader(pFileInfo, "", FALSE, g_InfoAll.TimeDateStamp, 0, Offset2 - (Offset + sizeof(FILE_HEADER)));
 
   SeekMappedFile(pFileInfo, Offset2, 0);
 
@@ -807,7 +810,7 @@ void WriteImportLibrary1()
 
   SeekMappedFile(pFileInfo, Offset, 0);
 
-  WriteFileHeader(pFileInfo, "", FALSE, g_InfoAll.Id, 0, Offset2 - (Offset + sizeof(FILE_HEADER)));
+  WriteFileHeader(pFileInfo, "", FALSE, g_InfoAll.TimeDateStamp, 0, Offset2 - (Offset + sizeof(FILE_HEADER)));
 
   SeekMappedFile(pFileInfo, Offset2, 0);
 
@@ -818,7 +821,7 @@ void WriteImportLibrary1()
 
   if (Length > 0x10)
   {
-    WriteFileHeader(pFileInfo, "/", FALSE, g_InfoAll.Id, 0, Length);
+    WriteFileHeader(pFileInfo, "/", FALSE, g_InfoAll.TimeDateStamp, 0, Length);
 
     WriteMappedFile(pFileInfo, (UCHAR *)g_InfoAll.pModuleName, Length);
 
@@ -860,9 +863,9 @@ void WriteImportLibrary2()
            (sizeof(g_Data2) + (sizeof(DATA_ENTRY) * 3)) +
            (ModuleNameLength + 1);
 
-  DataDescriptor.Architecture = g_InfoAll.Architecture;
+  DataDescriptor.Machine = g_InfoAll.Machine;
   DataDescriptor.a = 3;
-  DataDescriptor.Id = g_InfoAll.Id;
+  DataDescriptor.TimeDateStamp = g_InfoAll.TimeDateStamp;
   DataDescriptor.Length = Length;
   DataDescriptor.b = 8;
   DataDescriptor.Flags = g_InfoAll.bX64 ? 0 : 0x1000000;
@@ -1059,7 +1062,7 @@ void WriteImportLibrary2()
 
   SeekMappedFile(pFileInfo, Offset, 0);
 
-  WriteFileHeader(pFileInfo, g_InfoAll.pHeaderName, g_InfoAll.bHeaderName, g_InfoAll.Id, 0, Offset2 - (Offset + sizeof(FILE_HEADER)));
+  WriteFileHeader(pFileInfo, g_InfoAll.pHeaderName, g_InfoAll.bHeaderName, g_InfoAll.TimeDateStamp, 0, Offset2 - (Offset + sizeof(FILE_HEADER)));
 
   SeekMappedFile(pFileInfo, Offset2, 0);
 
@@ -1098,9 +1101,9 @@ void WriteImportLibrary3()
            (sizeof(g_Data0) + sizeof(ModuleNameLength) + ModuleNameLength + sizeof(g_Data1)) +
            (sizeof(g_Data2));
 
-  DataDescriptor.Architecture = g_InfoAll.Architecture;
+  DataDescriptor.Machine = g_InfoAll.Machine;
   DataDescriptor.a = 2;
-  DataDescriptor.Id = g_InfoAll.Id;
+  DataDescriptor.TimeDateStamp = g_InfoAll.TimeDateStamp;
   DataDescriptor.Length = Length;
   DataDescriptor.b = 2;
   DataDescriptor.Flags = g_InfoAll.bX64 ? 0 : 0x1000000;
@@ -1189,7 +1192,7 @@ void WriteImportLibrary3()
 
   SeekMappedFile(pFileInfo, Offset, 0);
 
-  WriteFileHeader(pFileInfo, g_InfoAll.pHeaderName, g_InfoAll.bHeaderName, g_InfoAll.Id, 0, Offset2 - (Offset + sizeof(FILE_HEADER)));
+  WriteFileHeader(pFileInfo, g_InfoAll.pHeaderName, g_InfoAll.bHeaderName, g_InfoAll.TimeDateStamp, 0, Offset2 - (Offset + sizeof(FILE_HEADER)));
 
   SeekMappedFile(pFileInfo, Offset2, 0);
 
@@ -1238,9 +1241,9 @@ void WriteImportLibrary4()
            PadLength +
            PadLength;
 
-  DataDescriptor.Architecture = g_InfoAll.Architecture;
+  DataDescriptor.Machine = g_InfoAll.Machine;
   DataDescriptor.a = 3;
-  DataDescriptor.Id = g_InfoAll.Id;
+  DataDescriptor.TimeDateStamp = g_InfoAll.TimeDateStamp;
   DataDescriptor.Length = Length;
   DataDescriptor.b = 2;
   DataDescriptor.Flags = g_InfoAll.bX64 ? 0 : 0x1000000;
@@ -1350,7 +1353,7 @@ void WriteImportLibrary4()
 
   SeekMappedFile(pFileInfo, Offset, 0);
 
-  WriteFileHeader(pFileInfo, g_InfoAll.pHeaderName, g_InfoAll.bHeaderName, g_InfoAll.Id, 0, Offset2 - (Offset + sizeof(FILE_HEADER)));
+  WriteFileHeader(pFileInfo, g_InfoAll.pHeaderName, g_InfoAll.bHeaderName, g_InfoAll.TimeDateStamp, 0, Offset2 - (Offset + sizeof(FILE_HEADER)));
 
   SeekMappedFile(pFileInfo, Offset2, 0);
 
@@ -1415,7 +1418,7 @@ void WriteImportLibrary6()
   // {
   SeekMappedFile(pFileInfo, g_InfoAll.pOffsets[1] + sizeof(FILE_HEADER) + sizeof(DWORD), 0);
 
-  for (DWORD i = 0; i < (PREDEFINED_SYMBOLS_COUNT + g_InfoAll.FunctionCount); ++i)
+  for (WORD i = 0; i < (g_InfoAll.FunctionCount + PREDEFINED_SYMBOLS_COUNT); ++i)
   {
     WriteMappedFile(pFileInfo, (UCHAR *)(g_InfoAll.pOffsets + (2 + i)), sizeof(DWORD));
   }
@@ -1454,14 +1457,14 @@ void WriteImportLibraryFunction(SYMBOL_INFO *pSymbolInfo)
 
   Length = g_InfoAll.ModuleNameLength + pSymbolInfo->SymbolNameLength + 2;
 
-  WriteFileHeader(pFileInfo, g_InfoAll.pHeaderName, g_InfoAll.bHeaderName, g_InfoAll.Id, 0, Length + sizeof(SymbolDescriptor));
+  WriteFileHeader(pFileInfo, g_InfoAll.pHeaderName, g_InfoAll.bHeaderName, g_InfoAll.TimeDateStamp, 0, Length + sizeof(SymbolDescriptor));
 
-  SymbolDescriptor.a = 0;
-  SymbolDescriptor.b = 0xFFFF;
-  SymbolDescriptor.c = 0;
-  SymbolDescriptor.Architecture = g_InfoAll.Architecture;
-  SymbolDescriptor.Id = g_InfoAll.Id;
-  SymbolDescriptor.Length = Length;
+  SymbolDescriptor.Sig1 = 0;
+  SymbolDescriptor.Sig2 = 0xFFFF;
+  SymbolDescriptor.Version = 0;
+  SymbolDescriptor.Machine = g_InfoAll.Machine;
+  SymbolDescriptor.TimeDateStamp = g_InfoAll.TimeDateStamp;
+  SymbolDescriptor.SizeOfData = Length;
   SymbolDescriptor.Value = pSymbolInfo->Value;
   SymbolDescriptor.Type = pSymbolInfo->Type;
 
@@ -1478,7 +1481,7 @@ void WriteImportLibraryFunction(SYMBOL_INFO *pSymbolInfo)
 void WriteFileHeader(FILE_INFO *pFileInfo, char *pString, BOOLEAN b, LONGLONG Id, DWORD a, DWORD BodyLength)
 {
   FILE_HEADER FileHeader;
-  DWORD StringLength;
+  size_t StringLength;
 
   StringLength = strlen(pString);
 
