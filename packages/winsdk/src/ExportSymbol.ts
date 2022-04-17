@@ -17,6 +17,7 @@ export interface LibPublicSymbol {
 export type LibSymbolNameType = 'undecorate' | 'ordinal' | 'name' | 'no prefix';
 
 export interface LibSymbol {
+  offset: number;
   version: number;
   machine: number;
   timeDateStamp: number;
@@ -156,6 +157,7 @@ export function parseArchiveMember(
        */
       try {
         const newSymbol: LibSymbol = {
+          offset: parseInt(archiveMember[0].split(':')[0].slice(23), 16),
           version: parseInt(extractValue(archiveMember[8], 'Version'), 10),
           machine: parseInt(extractValue(archiveMember[9], 'Machine'), 16),
           timeDateStamp: parseInt(extractValue(archiveMember[10], 'TimeDateStamp'), 16),
