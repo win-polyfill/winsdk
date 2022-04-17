@@ -6,9 +6,9 @@
 
 //..........................................................................................
 
-#define ARCHITECTURE_X86 0x14C
+#define MACHINE_X86 0x014C
 
-#define ARCHITECTURE_X64 0x8664
+#define MACHINE_X64 0x8664
 
 #define PREDEFINED_SYMBOLS_COUNT 3
 
@@ -713,12 +713,6 @@ void WriteImportLibrary(char *pName, char *pExt, SYMBOL_INFO *pSymbolList)
   g_InfoAll.pFileInfo = pFileInfo;
   g_InfoAll.pSymbolList = pSymbolList;
   g_InfoAll.SymbolCount = PREDEFINED_SYMBOLS_COUNT + (g_InfoAll.FunctionCount * 2);
-
-  if (g_InfoAll.bX64)
-    g_InfoAll.Machine = ARCHITECTURE_X64;
-  else
-    g_InfoAll.Machine = ARCHITECTURE_X86;
-
   g_InfoAll.pOffsets = pOffsets;
   g_InfoAll.TimeDateStamp = (DWORD)_time64(NULL);
   g_InfoAll.pModuleName = pModuleName;
@@ -1532,14 +1526,16 @@ void WriteFileHeader(FILE_INFO *pFileInfo, char *pString, BOOLEAN b, LONGLONG Id
 
 int main(int argc, char *argv[])
 {
-  char *pName;
+  char *pName = "long_dll_name_long_dll_name_long_dll_name";
   SYMBOL_INFO *pSymbolList;
-
-  pName = "long_dll_name_long_dll_name_long_dll_name";
+  if (argc > 2) {
+    pName = argv[1];
+  }
 
   pSymbolList = CreateSymbolList(pName);
 
-  g_InfoAll.bX64 = TRUE;
+  g_InfoAll.Machine = MACHINE_X86;
+  g_InfoAll.bX64 = g_InfoAll.Machine == MACHINE_X64;
 
   AddFunction(pSymbolList, "function100", 0, 0, CALLING_CONVENTION_STDCALL, IMPORT_CODE, IMPORT_NAME_BY_UNDECORATE);
 
