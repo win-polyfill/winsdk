@@ -194,8 +194,8 @@ SYMBOL_INFO **GetSymbolInfoArray4(SYMBOL_INFO *pSymbolList);
 SYMBOL_INFO **GetSymbolInfoArray5(SYMBOL_INFO *pSymbolList);
 void AddFunction(
     SYMBOL_INFO *pSymbolList, char *pFunctionName,
+    char *pAliasName,
     WORD Value, DWORD ArgListSizeInBytes,
-    CALLING_CONVENTION CallingConvention,
     IMPORT_TYPE ImportType,
     IMPORT_NAME_TYPE ImportNameType);
 SYMBOL_INFO *CreateSymbolList(char *pName);
@@ -218,7 +218,7 @@ char *DecorateCdeclFunction(char *pFunctionName, DWORD *pLength);
 char *DecorateStdCallFunction(char *pFunctionName, DWORD ArgListSizeInBytes, DWORD *pLength);
 char *DecorateFastCallFunction(char *pFunctionName, DWORD ArgListSizeInBytes, DWORD *pLength);
 char *DecorateVectorCallFunction(char *pFunctionName, DWORD ArgListSizeInBytes, DWORD *pLength);
-void ProcessFunction(SYMBOL_INFO *pSymbolInfo, char *pFunctionName, DWORD Value, DWORD ArgListSizeInBytes, CALLING_CONVENTION CallingConvention, IMPORT_TYPE ImportType);
+void ProcessFunction(SYMBOL_INFO *pSymbolInfo, char *pFunctionName, DWORD Value, DWORD ArgListSizeInBytes, IMPORT_TYPE ImportType);
 
 //..........................................................................................
 
@@ -332,37 +332,17 @@ SYMBOL_INFO **GetSymbolInfoArray2(SYMBOL_INFO *pSymbolList)
 
 SYMBOL_INFO **GetSymbolInfoArray1(SYMBOL_INFO *pSymbolList)
 {
-  DWORD j;
   SYMBOL_INFO **pSymbolInfoArray, *pSymbolInfo;
 
   pSymbolInfoArray = (SYMBOL_INFO **)malloc(g_InfoAll.SymbolCount * sizeof(SYMBOL_INFO *));
 
   pSymbolInfo = pSymbolList;
 
-  for (DWORD i = 0; i < PREDEFINED_SYMBOLS_COUNT - 1; ++i)
+  for (DWORD i = 0; i < g_InfoAll.SymbolCount; ++i)
   {
     pSymbolInfoArray[i] = pSymbolInfo;
 
     pSymbolInfo = pSymbolInfo->pNext;
-  }
-
-  pSymbolInfoArray[g_InfoAll.SymbolCount - 1] = pSymbolInfo;
-
-  pSymbolInfo = pSymbolInfo->pNext;
-
-  j = PREDEFINED_SYMBOLS_COUNT - 1;
-
-  for (DWORD i = 0; i < g_InfoAll.FunctionCount; ++i)
-  {
-    pSymbolInfoArray[j + g_InfoAll.FunctionCount] = pSymbolInfo;
-
-    pSymbolInfo = pSymbolInfo->pNext;
-
-    pSymbolInfoArray[j] = pSymbolInfo;
-
-    pSymbolInfo = pSymbolInfo->pNext;
-
-    ++j;
   }
 
   return pSymbolInfoArray;
@@ -370,33 +350,17 @@ SYMBOL_INFO **GetSymbolInfoArray1(SYMBOL_INFO *pSymbolList)
 
 SYMBOL_INFO **GetSymbolInfoArray0(SYMBOL_INFO *pSymbolList)
 {
-  DWORD j;
   SYMBOL_INFO **pSymbolInfoArray, *pSymbolInfo;
 
   pSymbolInfoArray = (SYMBOL_INFO **)malloc(g_InfoAll.SymbolCount * sizeof(SYMBOL_INFO *));
 
   pSymbolInfo = pSymbolList;
 
-  for (DWORD i = 0; i < PREDEFINED_SYMBOLS_COUNT; ++i)
+  for (DWORD i = 0; i < g_InfoAll.SymbolCount; ++i)
   {
     pSymbolInfoArray[i] = pSymbolInfo;
 
     pSymbolInfo = pSymbolInfo->pNext;
-  }
-
-  j = PREDEFINED_SYMBOLS_COUNT;
-
-  for (DWORD i = 0; i < g_InfoAll.FunctionCount; ++i)
-  {
-    pSymbolInfoArray[j + 1] = pSymbolInfo;
-
-    pSymbolInfo = pSymbolInfo->pNext;
-
-    pSymbolInfoArray[j] = pSymbolInfo;
-
-    pSymbolInfo = pSymbolInfo->pNext;
-
-    j += 2;
   }
 
   return pSymbolInfoArray;
@@ -477,41 +441,12 @@ char *DecorateVectorCallFunction(char *pFunctionName, DWORD ArgListSizeInBytes, 
 }
 
 void ProcessFunction(
-    SYMBOL_INFO *pSymbolInfo, char *pFunctionName, WORD OrdinalOrHint,
+    SYMBOL_INFO *pSymbolInfo, char *pSymbolName, WORD OrdinalOrHint,
     DWORD ArgListSizeInBytes,
-    CALLING_CONVENTION CallingConvention,
     IMPORT_TYPE ImportType,
     IMPORT_NAME_TYPE ImportNameType)
 {
-  if (g_InfoAll.bX64)
-  {
-    if (CallingConvention == CALLING_CONVENTION_VECTORCALL)
-    {
-      pSymbolInfo->pSymbolName = DecorateVectorCallFunction(pFunctionName, ArgListSizeInBytes, &pSymbolInfo->SymbolNameLength);
-    }
-    else
-    {
-      pSymbolInfo->pSymbolName = CopyString(pFunctionName, &pSymbolInfo->SymbolNameLength);
-    }
-  }
-  else
-  {
-    switch (CallingConvention)
-    {
-    case CALLING_CONVENTION_CDECL:
-      pSymbolInfo->pSymbolName = DecorateCdeclFunction(pFunctionName, &pSymbolInfo->SymbolNameLength);
-      break;
-    case CALLING_CONVENTION_STDCALL:
-      pSymbolInfo->pSymbolName = DecorateStdCallFunction(pFunctionName, ArgListSizeInBytes, &pSymbolInfo->SymbolNameLength);
-      break;
-    case CALLING_CONVENTION_FASTCALL:
-      pSymbolInfo->pSymbolName = DecorateFastCallFunction(pFunctionName, ArgListSizeInBytes, &pSymbolInfo->SymbolNameLength);
-      break;
-    case CALLING_CONVENTION_VECTORCALL:
-      pSymbolInfo->pSymbolName = DecorateVectorCallFunction(pFunctionName, ArgListSizeInBytes, &pSymbolInfo->SymbolNameLength);
-      break;
-    }
-  }
+  pSymbolInfo->pSymbolName = CopyString(pSymbolName, &pSymbolInfo->SymbolNameLength);
   pSymbolInfo->Value = OrdinalOrHint;
   pSymbolInfo->Type = ImportType;
   pSymbolInfo->NameType = ImportNameType;
@@ -521,13 +456,14 @@ SYMBOL_INFO *CreateSymbolInfo()
 {
   SYMBOL_INFO *x = (SYMBOL_INFO *)malloc(sizeof(SYMBOL_INFO));
   memset(x, 0, sizeof(x[0]));
+  g_InfoAll.SymbolCount += 1;
   return x;
 }
 
 void AddFunction(
-    SYMBOL_INFO *pSymbolList, char *pFunctionName,
+    SYMBOL_INFO *pSymbolList, char *pSymbolName,
+    char *pAliasName,
     WORD Value, DWORD ArgListSizeInBytes,
-    CALLING_CONVENTION CallingConvention,
     IMPORT_TYPE ImportType,
     IMPORT_NAME_TYPE ImportNameType)
 {
@@ -541,17 +477,28 @@ void AddFunction(
   pSymbolInfo->pNext = CreateSymbolInfo();
   pSymbolInfo = pSymbolInfo->pNext;
 
-  ProcessFunction(pSymbolInfo, pFunctionName, Value, ArgListSizeInBytes, CallingConvention, ImportType, ImportNameType);
-  pSymbolInfo->OffsetIndex = PREDEFINED_SYMBOLS_COUNT + g_InfoAll.FunctionCount;
-
-  pFunctionName = pSymbolInfo->pSymbolName;
+  ProcessFunction(pSymbolInfo, pSymbolName, Value, ArgListSizeInBytes, ImportType, ImportNameType);
+  pSymbolInfo->OffsetIndex = g_InfoAll.FunctionCount + PREDEFINED_SYMBOLS_COUNT;
 
   pSymbolInfo->pNext = CreateSymbolInfo();
   pSymbolInfo = pSymbolInfo->pNext;
-
-  pSymbolInfo->pSymbolName = CopyString2("__imp_", pFunctionName, &pSymbolInfo->SymbolNameLength);
-  pSymbolInfo->OffsetIndex = PREDEFINED_SYMBOLS_COUNT + g_InfoAll.FunctionCount;
+  pSymbolInfo->pSymbolName = CopyString2("__imp_", pSymbolName, &pSymbolInfo->SymbolNameLength);
+  pSymbolInfo->OffsetIndex = g_InfoAll.FunctionCount + PREDEFINED_SYMBOLS_COUNT;
   pSymbolInfo->pNext = NULL;
+  if (pAliasName)
+  {
+    pSymbolInfo->pNext = CreateSymbolInfo();
+    pSymbolInfo = pSymbolInfo->pNext;
+    pSymbolInfo->pSymbolName = CopyString(pAliasName, &pSymbolInfo->SymbolNameLength);
+    pSymbolInfo->OffsetIndex = g_InfoAll.FunctionCount + PREDEFINED_SYMBOLS_COUNT;
+    pSymbolInfo->pNext = NULL;
+
+    pSymbolInfo->pNext = CreateSymbolInfo();
+    pSymbolInfo = pSymbolInfo->pNext;
+    pSymbolInfo->pSymbolName = CopyString2("__imp_", pAliasName, &pSymbolInfo->SymbolNameLength);
+    pSymbolInfo->OffsetIndex = g_InfoAll.FunctionCount + PREDEFINED_SYMBOLS_COUNT;
+    pSymbolInfo->pNext = NULL;
+  }
 
   ++(g_InfoAll.FunctionCount);
 }
@@ -712,7 +659,6 @@ void WriteImportLibrary(char *pName, char *pExt, SYMBOL_INFO *pSymbolList)
 
   g_InfoAll.pFileInfo = pFileInfo;
   g_InfoAll.pSymbolList = pSymbolList;
-  g_InfoAll.SymbolCount = PREDEFINED_SYMBOLS_COUNT + (g_InfoAll.FunctionCount * 2);
   g_InfoAll.pOffsets = pOffsets;
   g_InfoAll.TimeDateStamp = (DWORD)_time64(NULL);
   g_InfoAll.pModuleName = pModuleName;
@@ -806,7 +752,7 @@ void WriteImportLibrary1()
 
   SeekMappedFile(pFileInfo, SymbolCount * sizeof(WORD), 1);
 
-  pSymbolInfoArray = GetSymbolInfoArray1(g_InfoAll.pSymbolList);
+  pSymbolInfoArray = GetSymbolInfoArray0(g_InfoAll.pSymbolList);
 
   for (DWORD i = 0; i < SymbolCount; ++i)
   {
@@ -1528,16 +1474,18 @@ int main(int argc, char *argv[])
 {
   char *pName = "long_dll_name_long_dll_name_long_dll_name";
   SYMBOL_INFO *pSymbolList;
-  if (argc > 2) {
+  if (argc > 2)
+  {
     pName = argv[1];
   }
 
+  g_InfoAll.SymbolCount = 0;
   pSymbolList = CreateSymbolList(pName);
 
   g_InfoAll.Machine = MACHINE_X86;
   g_InfoAll.bX64 = g_InfoAll.Machine == MACHINE_X64;
 
-  AddFunction(pSymbolList, "function100", 0, 0, CALLING_CONVENTION_STDCALL, IMPORT_CODE, IMPORT_NAME_BY_UNDECORATE);
+  AddFunction(pSymbolList, "_wpAddAtomA@4", "_AddAtomA@4", 0, 0, IMPORT_CODE, IMPORT_NAME_BY_UNDECORATE);
 
   WriteImportLibrary(pName, ".dll", pSymbolList);
 

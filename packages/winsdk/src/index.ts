@@ -1,8 +1,9 @@
+/* eslint-disable no-continue */
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { exec } from '@esutils/process';
 
-import { parseArchiveMember, newExportSymbolResult } from './ExportSymbol';
+import { parseArchiveMember, newExportSymbolResult, ExportSymbolResult } from './ExportSymbol';
 
 export { parseArchiveMember, newExportSymbolResult } from './ExportSymbol';
 
@@ -133,8 +134,12 @@ async function generateDefFile(rootDir: string, prefix: string, arch: string) {
   await Promise.all(promises);
 }
 
-export async function main(rootDir: string) {
+function setupPath() {
   process.env.PATH = `C:/Program Files (x86)/Microsoft Visual Studio 14.0/VC/bin;${process.env.PATH}`;
+}
+
+export async function main(rootDir: string) {
+  setupPath();
   const x86Dirs = [
     '00-Windows2000-SP4-DLL',
     '01-WindowsXP-RTM-DLL',
@@ -150,4 +155,87 @@ export async function main(rootDir: string) {
   await Promise.all(results);
 
   // console.log(`Generate sdk ${result.stdout}`);
+}
+
+async function readJson(p: string) {
+  const content = await fs.readFile(p, { encoding: 'utf-8' });
+  return JSON.parse(content);
+}
+const BlockList = [
+  '_GetScaleFactorForWindow@8',
+  '_SHGetSpecialFolderPath@16',
+];
+
+/* eslint-disable no-await-in-loop */
+export async function merge(rootDir: string, name: string, deps: string[]) {
+  setupPath();
+  const symbolResultForDeps: ExportSymbolResult[] = [];
+  for (let i = 0; i < deps.length; i += 1) {
+    const p = path.join(rootDir, 'exports', 'x86', 'json', `${name}--${deps[i]}.json`);
+    let hasPath = true;
+    try {
+      await fs.access(p);
+    } catch (error) {
+      hasPath = false;
+    }
+
+    if (hasPath) {
+      const j = (await readJson(p)) as ExportSymbolResult;
+      symbolResultForDeps.push(j);
+    }
+  }
+  const ordinalToName = new Map<number, Set<string>>();
+  for (let i = 0; i < symbolResultForDeps.length; i += 1) {
+    const symbolResult = symbolResultForDeps[i];
+    for (let j = 0; j < symbolResult.dllExports.length; j += 1) {
+      const dllExport = symbolResult.dllExports[j];
+      [dllExport.name] = dllExport.name.split(' ');
+      if (dllExport.name !== '[NONAME]') {
+        if (!ordinalToName.has(dllExport.ordinal)) {
+          ordinalToName.set(dllExport.ordinal, new Set<string>());
+        }
+        ordinalToName.get(dllExport.ordinal)!.add(dllExport.name);
+      }
+    }
+  }
+
+  const symbols = new Map<string, ExportSymbolResult>();
+
+  for (let i = 0; i < symbolResultForDeps.length; i += 1) {
+    const symbolResult = symbolResultForDeps[i];
+    for (let j = 0; j < symbolResult.libSymbols.length; j += 1) {
+      const libSymbol = symbolResult.libSymbols[j];
+      if (libSymbol.dllName !== '') {
+        if (BlockList.indexOf(libSymbol.symbolName) >= 0) {
+          continue;
+        }
+        let symbolName = libSymbol.name;
+        if (libSymbol.nameType === 'ordinal') {
+          const names = ordinalToName.get(libSymbol.ordinal!);
+          if (names) {
+            if (names.size !== 1) {
+              console.log(`There is multiple name for ordinal in ${name}:${deps[i]} ord:${libSymbol.ordinal} ${libSymbol.symbolName} with ${Array.from(names.values())}`);
+            }
+            const namesArray = Array.from(names.values());
+            symbolName = namesArray[namesArray.length - 1];
+          } else {
+            symbolName = undefined;
+          }
+        }
+        if (!symbolName) {
+          console.log(`Can not found original name in ${name}:${deps[i]} ord:${libSymbol.ordinal} ${libSymbol.symbolName}`);
+          symbolName = libSymbol.symbolName;
+        }
+        if (symbolName) {
+          if (!symbols.has(symbolName)) {
+            symbols.set(symbolName, newExportSymbolResult());
+          }
+          symbols.get(symbolName)!.libSymbols.push(libSymbol);
+        }
+      }
+    }
+  }
+  const mergedPath = path.join(rootDir, 'exports', 'x86', 'merged', `${name}.json`);
+  const entries = Array.from(symbols.entries());
+  await fs.writeFile(mergedPath, JSON.stringify(entries, null, 2));
 }

@@ -1,8 +1,8 @@
 export interface DllExport {
   name: string;
-  ordinal?: number;
-  hint?: number;
-  rva?: number;
+  ordinal: number;
+  hint: number;
+  rva: number;
 }
 export interface LibExport {
   ordinal?: number;
@@ -64,7 +64,7 @@ export function extractValue(str: string, key: string): string {
   return str.slice(keyLength + 1).trim();
 }
 
-export function newExportSymbolResult() {
+export function newExportSymbolResult(): ExportSymbolResult {
   return {
     dllExports: [],
     libExports: [],
@@ -94,12 +94,10 @@ export function parseArchiveMember(
       const ordinal: number = parseInt(ordinalString, 10);
       const dllExport:DllExport = {
         name,
+        ordinal,
+        hint: parseInt(hintString, 16),
+        rva: parseInt(rvaString, 16),
       };
-      if (true) {
-        dllExport.ordinal = ordinal;
-        dllExport.hint = parseInt(hintString, 16);
-        dllExport.rva = parseInt(rvaString, 16);
-      }
       result.dllExports.push(dllExport);
     }
   } else if (archiveMember[0] === '     Exports') {
