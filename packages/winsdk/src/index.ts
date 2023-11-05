@@ -25,7 +25,7 @@ export async function getLibList(
   const dllFiles = await fs.readdir(WinXpRtmDllDir);
   const libFiles = await fs.readdir(WinXpSp1LibDir);
   const libFilesNew = await fs.readdir(path.join(WinSdkLibDir));
-  const result = [];
+  const result: string[] = [];
   for (let i = 0; i < libFiles.length; i += 1) {
     const libFile = libFiles[i].toLowerCase();
     if (libFile.endsWith('.lib')) {
@@ -80,9 +80,8 @@ function parseSymbols(exportContent: string) {
 }
 
 async function getExports(
-  rootDir: string,
-  arch: string,
   filePath: string,
+  outputDir: string,
   outputFile: string,
 ): Promise<string> {
   const args: string[] = [];
@@ -102,19 +101,18 @@ async function getExports(
     maxBuffer: 1024 * 1024 * 64,
   });
   await fs.writeFile(
-    `${rootDir}/exports/${arch}/txt/${outputFile}.txt`,
+    `${outputDir}/txt/${outputFile}.txt`,
     result.stdout,
   );
   const exportsXpDllEntries = parseSymbols(result.stdout);
   await fs.writeFile(
-    `${rootDir}/exports/${arch}/json/${outputFile}.json`,
+    `${outputDir}/json/${outputFile}.json`,
     JSON.stringify(exportsXpDllEntries, null, 2),
   );
   return result.stdout;
 }
 
-async function generateDefFile(rootDir: string, prefix: string, arch: string) {
-  const objectFileDir = path.join(rootDir, 'deps', prefix, arch);
+async function generateDefFile(objectFileDir: string, outputDir: string, prefix: string) {
   const files = await fs.readdir(objectFileDir);
   const promises: Promise<string>[] = [];
   for (let i = 0; i < files.length; i += 1) {
@@ -123,9 +121,8 @@ async function generateDefFile(rootDir: string, prefix: string, arch: string) {
     if (extName === '.lib' || extName === '.dll') {
       promises.push(
         getExports(
-          rootDir,
-          arch,
           path.join(objectFileDir, libFile),
+          outputDir,
           `${path.basename(libFile, extName)}--${prefix}`,
         ),
       );
@@ -150,7 +147,11 @@ export async function main(rootDir: string) {
   ];
   const results: Promise<void>[] = [];
   for (let i = 0; i < x86Dirs.length; i += 1) {
-    results.push(generateDefFile(rootDir, x86Dirs[i], 'x86'));
+    const prefix = x86Dirs[i]
+    const arch = 'x86'
+    const objectFileDir = path.join(rootDir, 'deps', prefix, arch);
+    const outputDir = `${rootDir}/exports/${arch}`
+    results.push(generateDefFile(objectFileDir, x86Dirs[i], outputDir));
   }
   await Promise.all(results);
 
